@@ -39,7 +39,8 @@ function M.create(config, results, bufnr)
     config.signs,
     hotkeys_mode,
     custom_keys,
-    M._hotkey_enabled
+    M._hotkey_enabled,
+    M.sort_fn
   )
 
   M.config = config

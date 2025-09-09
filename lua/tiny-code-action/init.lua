@@ -91,6 +91,7 @@ function M.code_action(opts)
 
     picker_module.match_hl_kind = M.match_hl_kind
     picker_module.backend = M.backend
+    picker_module.sort_fn = opts.sort
     picker_module.create(M.config, results, bufnr)
   end)
 end

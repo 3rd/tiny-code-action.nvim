@@ -56,11 +56,12 @@ end
 --- @param hotkey_mode string: Hotkey generation mode
 --- @param custom_keys table: Custom hotkey definitions
 --- @param hotkey_enabled boolean: Whether hotkeys are enabled
+--- @param sort_fn function|nil: Optional sort function to apply after hotkey generation
 --- @return table lines
 --- @return table line_to_action
 --- @return table line_to_hotkey
 --- @return number last_line
-function M.build_display_content(groups, config_signs, hotkey_mode, custom_keys, hotkey_enabled)
+function M.build_display_content(groups, config_signs, hotkey_mode, custom_keys, hotkey_enabled, sort_fn)
   local lines = {}
   local line_to_action = {}
   local line_to_hotkey = {}
@@ -85,6 +86,31 @@ function M.build_display_content(groups, config_signs, hotkey_mode, custom_keys,
   if hotkey_enabled then
     global_hotkeys = hotkeys.generate_hotkeys(all_titles, hotkey_mode, custom_keys, used_hotkeys)
   end
+
+  -- Attach hotkeys to action items
+  for i, action_item in ipairs(all_actions) do
+    if hotkey_enabled and global_hotkeys[i] then
+      action_item.hotkey = global_hotkeys[i]
+    end
+  end
+
+  -- Apply custom sort if provided
+  if sort_fn and type(sort_fn) == "function" then
+    local sorted = sort_fn(all_actions)
+    if sorted then
+      all_actions = sorted
+    end
+  end
+
+  -- Rebuild groups after sorting to maintain category display
+  groups = {}
+  for _, action_item in ipairs(all_actions) do
+    local category = categories.get_action_category(action_item)
+    groups[category] = groups[category] or {}
+    table.insert(groups[category], action_item)
+  end
+  sorted_categories = categories.get_sorted_categories(groups)
+
   local global_max_hotkey_len = 0
   for _, hotkey in ipairs(global_hotkeys) do
     if #hotkey > global_max_hotkey_len then
@@ -92,7 +118,7 @@ function M.build_display_content(groups, config_signs, hotkey_mode, custom_keys,
     end
   end
 
-  local hotkey_idx = 1
+  -- Build categorized display with sorted items
   for _, category in ipairs(sorted_categories) do
     local category_label = categories.get_category_label(category)
     local icon = config_signs and config_signs[category] and config_signs[category][1] or ""
@@ -108,14 +134,13 @@ function M.build_display_content(groups, config_signs, hotkey_mode, custom_keys,
         local title = action_item.action and action_item.action.title or ""
         title = title:gsub("\n", " ")
 
-        local hotkey = global_hotkeys[hotkey_idx]
+        local hotkey = action_item.hotkey or ""
         local display_line =
           string.format("  [%-" .. global_max_hotkey_len .. "s] %s", hotkey, title)
         table.insert(lines, display_line)
         line_to_action[line_number] = action_item
         line_to_hotkey[line_number] = hotkey
         line_number = line_number + 1
-        hotkey_idx = hotkey_idx + 1
       end
     else
       for _, action_item in ipairs(actions) do
